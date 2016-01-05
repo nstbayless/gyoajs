@@ -1,0 +1,26 @@
+<style>
+table {
+  padding:3px;
+}
+table, td {
+  border: 1px solid black;
+  width: 98%;
+  max-width: 550px;
+}
+th,td {
+  padding:5px;
+}
+th {
+  font-family: Verdana, Geneva, sans-serif, monospace;
+  font-weight: normal;
+  font-size: 20px
+}
+rmbody {
+    background-color:yellow;
+    color:gray;
+    clear:both;
+    text-align:left;
+    padding:5px; 
+    width:50em
+}
+</style>

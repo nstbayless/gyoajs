@@ -1,0 +1,8 @@
+{
+  "name" : "gyoajs",
+  "version" : "0.0.1",
+  "dependencies" : {
+    "express" : "3.3.x",
+    "ffi" : ">=0.0.1"
+  }
+}
