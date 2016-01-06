@@ -1,0 +1,22 @@
+<script src="pub/socket.io.js"></script>
+<script>
+  var submitted=false;
+  var socket = io('_DOMAIN_');
+  socket.on('redirect', function (data) {
+    window.location.href=data.url;
+  });
+  function submit() {
+    if (submitted) return;
+    socket.emit('room_edit',
+    {id : _ROOMID_,
+     body : document.getElementById('bodyarea').value
+    });
+    submitted=true;
+  }
+</script>
+
+<tr><td><p align="center"><textarea id="bodyarea" rows="36" cols="60" style="resize:none;overflow-y:scroll;overflow-x: hidden;">
+_DEFTEXT_
+</textarea></p>
+
+<button onclick="submit();">Submit</button></td></tr>

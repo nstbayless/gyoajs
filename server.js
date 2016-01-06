@@ -7,6 +7,7 @@ var ffi = require("ffi");
 var ref = require('ref');
 var Struct = require('ref-struct');
 var sanitizeHtml = require('sanitize-html');
+var io = require("socket.io");
 
 //load config options:
 var config = require("./config")
@@ -30,8 +31,9 @@ var gyoa = ffi.Library('libgyoa',{
   'makeRoom' : [ GyoaID, ['pointer'] ],
   'editOptionDescription' : ['void' , ['pointer',GyoaID,GyoaID,'string'] ],
   'editOptionDestination' : ['void' , ['pointer',GyoaID,GyoaID,GyoaID] ],
+  'editRoomBody' : [GyoaID, ['pointer', GyoaID, 'string']],
   'saveAll' : ['string', ['pointer','bool'] ],
-  'parse_id' : [GyoaID, ['string'] ],
+  'parse_id' : [GyoaID, ['string'] ]
 })
 
 //load GYOA library:
@@ -61,7 +63,7 @@ var embed_cliff = fs.readFileSync('private/cliff.html').toString();
 var embed_nav = "<tr><td style=\"border:0px\"><font size=2><p align=center><a href=tag"+gyoa_inittag+">[Restart]</a>"
   + " || <a href=\"javascript:history.go(-1)\">[Go Back]</a>"
   + " <del/></tr>"
-
+var embed_script_test = fs.readFileSync('private/script_iotest.html').toString();
 
 //get HTML representation of the given body text
 var getHTMLBodyText = function(raw_text) {
@@ -90,8 +92,6 @@ var getHTMLBodyText = function(raw_text) {
 var getScenario = function(tag) {
   var tags=tag.split(TAG_SEPARATOR)
   if (tags.length>=3){
-    if (tags[0]!="rm")
-      return null;
     gid=tags[1]
     rid=tags[2]
     var gyoa_rm_id = gyoa.parse_id(gid+":"+rid);
@@ -99,7 +99,7 @@ var getScenario = function(tag) {
       return null;
     //get room description:
     var title = gyoa.getRoomTitle(gyoa_model,gyoa_rm_id)
-    var body = getHTMLBodyText(gyoa.getRoomBody(gyoa_model,gyoa_rm_id))
+    var body = gyoa.getRoomBody(gyoa_model,gyoa_rm_id)
     
     var opt = [ ]
     var opt_n = gyoa.getOptionCount(gyoa_model,gyoa_rm_id);
@@ -118,7 +118,8 @@ var getScenario = function(tag) {
     }
     return {
       title: title,
-      body: body,
+      body: getHTMLBodyText(body),
+      body_raw: body,
       opt: opt
     }
   }
@@ -151,16 +152,27 @@ var makeScenarioFromTag = function(tags) {
 }
 
 //send client HTML/javascript allowing them to edit room
-var makeResponseForEditing = function(tags,res) {
+var makeResponseForEditing = function(tag,req,res) {
+  tags = tag.split(TAG_SEPARATOR);
   res.writeHead(200, {"Content-Type": "text/html"});
   res.write(embed_top);
+  var room = getScenario(tag);
+  if (room==null)
+    res.write("<tr><td>Error: no room to edit.</td></tr>")
+  else {
+    res.write(embed_script_test
+      .replace("_DOMAIN_",req.headers.host)
+      .replace("_DEFTEXT_",room.body_raw)
+      .replace("_ROOMID_",'"'+tags[1]+"x"+tags[2]+'"')
+    );
+  }
   res.write(embed_nav);
   res.write(embed_bot);
   res.end();
 }
 
 //send client HTML corresponding to the desired gyoa room and context
-var makeResponseForTag = function(tag,response) {
+var makeResponseForTag = function(tag,request,response) {
   //allows editing of nav bar if scenario being viewed
   var tags=tag.split(TAG_SEPARATOR)
   if (tags[0]==TAG_NO_ROOM&&config.editable) {
@@ -169,12 +181,13 @@ var makeResponseForTag = function(tag,response) {
     //user wants to edit room
     response.write(embed_cliff)
     //create scenario link: (random tag to prevent caching)
-    response.write("<tr><td><a href=tag"+TAG_MAKE+"&"+tags.slice(1).join("&")+"&rand&"+Math.random()+">Write Scenario</a></td></tr>")
+    response.write("<tr><td><a href=tag"+TAG_MAKE+"&"+tags.slice(1).join("&")
+      +"&rand&"+Math.random()+">Write Scenario</a></td></tr>")
     response.write(embed_nav)
     response.write(embed_bot);
     response.end();
   } else if (tags[0]==TAG_EDIT&&config.editable) {
-    makeResponseForEditing(tag,response);
+    makeResponseForEditing(tag,request,response);
   } else if (tags[0]==TAG_MAKE&&config.editable) {
     tag_redirect = makeScenarioFromTag(tags);
     response.writeHead(301,
@@ -194,7 +207,8 @@ var makeResponseForTag = function(tag,response) {
         response.write("<p align=\"center\" size=24>Options</p>\n")
         for (var i=0;i<room.opt.length;i++) {
           if (room.opt[i].destination.substring(0,8).toLowerCase()=="tag-1x-1"||
-              room.opt[i].destination.substring(0,TAG_NO_ROOM.length+3).toLowerCase()=="tag"+TAG_NO_ROOM.toLowerCase()) {
+              room.opt[i].destination.substring(0,TAG_NO_ROOM.length+3)
+                .toLowerCase()=="tag"+TAG_NO_ROOM.toLowerCase()) {
             //no destination written
             if (config.editable)
               response.write("<p><i><a href="+room.opt[i].destination+">"+room.opt[i].description+"*</a></i></p>\n")
@@ -237,18 +251,32 @@ var makeResponseForFile = function(file,res) {
 }
 
 //start serving...
-server = http.createServer(function(request, response) {
+var server = http.createServer(function(request, response) {
   if (request.url.substring(0,5)=="/pub/") {
     makeResponseForFile(request.url.substring(4),response);
   } else if (request.url.substring(0,5)=="/favi"){
     makeResponseForFile(request.url,response);
   } else if (request.url.substring(0,4)=="/tag") {
-    makeResponseForTag(request.url.substring(4),response);
+    makeResponseForTag(request.url.substring(4),request,response);
   } else {
     response.writeHead(404, {'Content-Type': 'text/plain'});
     response.write('404 Not Found\n');
     response.end();
   }
 }).listen(config.port);
+
+io = io.listen(server);
+io.sockets.on('connection',function(socket) {
+  console.log("connection received")
+  socket.on('room_edit',function(data){
+    if (config.editable) {
+      var gyoa_rm_id = gyoa.parse_id(data.id);
+      if (gyoa.roomExists(gyoa_model,gyoa_rm_id)) {
+        gyoa.editRoomBody(gyoa_model,gyoa_rm_id,data.body)
+      }
+    }
+    socket.emit('redirect',{url:'tagrm&'+data.id})
+  });
+});
 
 console.log("Server running on port "+config.port);

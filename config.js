@@ -7,7 +7,7 @@ config.model_path = "~/git/gyoa-test-repo"
 config.port=8888
 
 //allow users to edit adventure?
-config.editable=true;
+config.editable=false;
 
 //export module (for use in server.js)
 module.exports = config
