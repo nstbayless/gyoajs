@@ -1,0 +1,71 @@
+<script src="pub/socket.io.js"></script>
+<script>
+  var submitted=false;
+  function displayError(err) {
+    p_err = document.getElementById('errdisp')
+    p_err.innerHTML=err
+  }
+  var socket = io('_DOMAIN_');
+  socket.on('redirect', function (data) {
+    //success; get redirected
+    window.location.href=data.url;
+  });
+  socket.on('errorr', function (data) {
+    //show user error
+    displayError(data.err);
+    console.log("Error received from server: " + data.err)
+    //allow user to resubmit after fixing error
+    submitted=false;
+  });
+  function submit() {
+    if (submitted) {
+      //cannot submit twice
+      displayError("Please be patient. Server is thinking...")
+      return;
+    }
+    //gather array of option information:
+    opt = []
+    var row_last = main.rows.length-3;
+    for (var row_i=2;row_i<row_last;row_i++) { 
+      var row = main.rows[row_i]
+      opt.push({
+        description: row.getElementsByTagName('input')[0].value,
+        destination: row.getElementsByTagName('input')[1].value
+      }
+      )
+    }
+    submitted=true;
+    socket.emit('room_edit',
+    {
+      id : _ROOMID_,
+      body : document.getElementById('bodyarea').value,
+      title : document.getElementById('title').value,
+      opt : opt
+    });
+  }
+  function addOption() {
+    var main = document.getElementById('main')
+    var row_last = main.rows.length-3;
+    var row = main.insertRow(row_last)
+    var row_c = row_last-2
+    row.innerHTML="_ADDOPT_"
+  }
+  function deleteOption(ref) { 
+    //remove row:
+    ref.parentNode.parentNode.remove();
+  }
+</script>
+<th><input id="title" type="text" style="font-size:22px;text-align:center;margin:auto" size="40" value="_DEFTITLE_"/></input></th>
+<tr><td><p align="center"><textarea id="bodyarea" rows="36" cols="60" style="resize:none;overflow-y:scroll;overflow-x: hidden;">
+_DEFBODY_
+</textarea></p></td></tr>
+_DEFOPT_
+<tr><td>
+  <button onclick="addOption()">Add Option</button>
+  <div align="center" id="errdisp" style="color:red;font-weight:bold"></div>
+</tr></td>
+<tr><td>
+  <p align="center">
+  <button onclick="submit();">Submit</button>
+  </p>
+</td></tr>
