@@ -178,7 +178,6 @@ var makeScenarioFromTag = function(tags) {
       return "";
     var gyoa_dst_id = gyoa.makeRoom(gyoa_model)
     gyoa.editOptionDestination(gyoa_model,gyoa_src_id,gyoa_src_opt_id,gyoa_dst_id);
-    //gyoa.saveAll(gyoa_model,false);
     return TAG_EDIT+"&"+gyoa_dst_id.gid+"x"+gyoa_dst_id.rid;
   }
   return "";
@@ -246,7 +245,7 @@ var makeResponseForEditing = function(tag,req,res) {
       .replace("_DEFBODY_",sanitizeForHTMLInsert(room.body_raw))
       .replace("_ROOMID_",'"'+tags[1]+"x"+tags[2]+'"')
       .replace("_ADDOPT_",opt_html
-        .replace("_DST_","'-1x-1'")
+        .replace("_DST_","''")
         .replace("_OPTEXT_","'new option (\"+(row_c+1)+\")...'")//row_c is a client-side var
         .replace(/\n/g," "))
       .replace("_DEFOPT_",defopt)
@@ -276,10 +275,11 @@ var makeResponseForTag = function(tag,request,response) {
   } else if (tags[0]==TAG_MAKE&&config.editable) {
     //create scenario and then redirect client to edit page
     tag_redirect = makeScenarioFromTag(tags);
-    response.writeHead(301,
+    response.writeHead(302,
     {Location: '/tag'+tag_redirect
     });
     response.end();
+    console.log("scenario created: " + tag_redirect);
   } else if (tags[0]==TAG_EDIT&&config.editable) {
     //client edits an existing page
     makeResponseForEditing(tag,request,response);
@@ -358,7 +358,7 @@ io.sockets.on('connection',function(socket) {
           if (typeof(data.opt[i].description)!='string'
             || typeof(data.opt[i].destination)!='string')
             throw ERR_START+"submission invalid (type error): option "+(i+1)
-          data.opt[i].parse_id=gyoa.parse_id(data.opt[i].destination)
+          data.opt[i].parse_id=gyoa.parse_id(data.opt[i].destination.trim())
           if (data.opt[i].parse_id.gid==-1&&data.opt[i].parse_id.rid==-2)
             throw ERR_START+"submission invalid (wrong format or error id):"
               + "option destination "+(i+1)+": " + data.opt[i].destination
