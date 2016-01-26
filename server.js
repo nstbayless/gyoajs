@@ -46,6 +46,15 @@ var gyoa = ffi.Library('libgyoa',{
   'stageAndCommit' : ['void', ['pointer','string','string','string'] ]
 })
 
+//useful function from http://stackoverflow.com/a/32749571
+function fileExists(filePath) {
+  try {
+    return fs.statSync(filePath).isFile();
+  } catch (err) {
+    return false;
+  }
+}
+
 //load GYOA library:
 gyoa.libgitInit();
 var gyoa_model = gyoa.loadModel(config.model_path)
@@ -71,6 +80,22 @@ try{edit_history=jsonfile.readFileSync(edit_history_path)}
 catch (err) {
   console.log("unable to open edit history for " + edit_history_path);
   edit_history={};
+}
+//load list of protected files
+var protected = {"_comment_": "THIS DOCUMENT IS FOR PROTECTING CERTAIN PAGES FROM EDITS.", "0x0":false}
+var protected_path = "./protected.json";
+try {
+  if (!fileExists(protected_path)) {
+    console.log("No " + protected_path + " file found, creating one...");
+    jsonfile.writeFile(protected_path, protected, function (err) {
+      console.error(err);
+    })
+  } else {
+    protected=jsonfile.readFileSync(protected_path);
+  }
+} catch (err) {
+  console.error(err);
+  protected={}
 }
 
 //separates tags: tagrm&0x0
@@ -186,6 +211,8 @@ var getRoomEditable = function(gyoa_model, gyoa_rm_id, lock_code){
   lock_code = lock_code || -1;
   if (!config.editable)
     return EDIT_RSTATIC;
+  if (protected[gyoa_rm_id.gid+"x"+gyoa_rm_id.rid])
+    return EDIT_PROTECTED;
   try {
     if (checkLockCode(lock_code,gyoa_rm_id))
       return EDIT_YES;
@@ -379,16 +406,25 @@ var makeResponseForScenario = function(tag,response) {
   response.write(embed_top);
   var room = getScenario(tag)
   if (room!=null) {
-    response.write("<tr><th>"+room.title+"</th></tr>\n")
+    //get page protection status:
+    var editable = getRoomEditable(room.gyoa_model,room.gyoa_id);
+    var img_lock = ""
+    var lock_path = "/pub/protect.png";
+    if (editable==EDIT_LOCKED)
+      var lock_path = "/pub/lock.png";
+    if (editable!=EDIT_YES&&config.editable)
+      img_lock='<span style="position:absolute;"><img src="'+lock_path+'" align="right" style="position:absolute;top:-4px;left:20px;"/></span>'
+    response.write("<tr><th>"+room.title+img_lock+"</th></tr>\n")
     response.write("<tr><td>"+room.body+"</td></tr>\n")
     if (room.opt.length>0) {
       response.write("<tr><td>")
       response.write("<p align=\"center\" size=24>Options</p>\n")
       for (var i=0;i<room.opt.length;i++) {
-        if (room.opt[i].raw_destination=="-1x-1") {
+        if (room.opt[i].raw_destination.substring(0,3)=="-1x") {
           //no destination written
-          if (getRoomEditable(room.gyoa_model,room.gyoa_id)==EDIT_YES)
+          if (config.editable&&editable!=EDIT_LOCKED) {
             response.write("<p>"+(i+1)+". <i><a href="+room.opt[i].destination+">"+room.opt[i].description+"*</a></i></p>\n")
+          }
           else
             response.write("<p>"+(i+1)+". "+room.opt[i].description+"</p>")
         } else
@@ -415,7 +451,7 @@ var makeResponseForScenario = function(tag,response) {
       var expiry = "";
       var quantum = getLockQuantum(room.gyoa_id);
       if (config.lockQuantum-quantum*1000 > config.lockHeartbeat*1.2)
-        expiry = "(lock expires in " + Math.floor(quantum) + " seconds)";
+        expiry = "(lock expires in " + Math.ceil(quantum) + " seconds)";
       edit_info_string = "<font size=2 color=#383838><b>This room is currently being edited " + expiry + "</b></font>";
     }
     if (getRoomEditable(room.gyoa_model,room.gyoa_id)==EDIT_YES) {
@@ -429,12 +465,13 @@ var makeResponseForScenario = function(tag,response) {
   }
   response.write(embed_nav_cust)
   if(edit_info_string.length>0||global_edit_info_string.length>0) {
-    response.write("<tr><td><i><center>")
+    response.write("\n<tr><td style=\"border:0px\"><i><center>")
     response.write(edit_info_string)
+    response.write("<font size=1 color=grey>");
     if (edit_info_string.length!=0&&global_edit_info_string.length!=0)
-      response.write("<font size=1 color=grey> ~ ")
+      response.write(" ~ ")
     response.write(global_edit_info_string)
-    response.write("</font></center></i></tr></td>")
+    response.write("</font></center></i></td></tr>")
   }
   response.write(embed_bot);
   response.end();
@@ -544,6 +581,7 @@ io.sockets.on('connection',function(socket) {
       socket.emit('lock_code',lock_code);
     }
   })
+
   socket.on('renew_lock',function(data){
     try {
       console.log("ping renew lock " + data.lock_code + " for room " + data.id);
@@ -558,6 +596,7 @@ io.sockets.on('connection',function(socket) {
         socket.emit('lock_code',data.lock_code);
     } catch (err) {socket.emit('lock_code',-1)}
   })
+
   socket.on('room_edit',function(data){
     //client edits a room:
     try {
