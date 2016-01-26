@@ -118,9 +118,12 @@ var mimeTypes = {
 var embed_top = fs.readFileSync('private/embed_top.html').toString();
 var embed_bot = fs.readFileSync('private/embed_bot.html').toString();
 var embed_cliff = fs.readFileSync('private/cliff.html').toString();
-var embed_nav = "<tr><td style=\"border:0px\"><font size=2><p align=center><a href=tag"+gyoa_inittag+">[Restart]</a>"
-  + " || <a href=\"javascript:history.go(-1)\">[Go Back]</a>"
-  + " <del/></td></tr>"
+var embed_nav = "<tr><td style=\"border:0px\"><font size=2><p align=center>"
+for (i=0;i<config.hotPages.length;i++) {
+embed_nav+="<a href=\""+config.hotPages[i].href+"\">["+config.hotPages[i].link+"]</a> || "
+}
+embed_nav+= " <a href=\"javascript:history.go(-1)\">[Go Back]</a> <del/></p></font></td></tr>"
+
 var embed_script_edit = fs.readFileSync('private/script_edit.html').toString();
 var embed_script_edit_opt = fs.readFileSync('private/script_opt.html').toString();
 
@@ -239,10 +242,10 @@ var dateToPrettyString = function(date) {
   var d = new Date(date);
   elapsed/=60; //elapsed measured in hours
   if (elapsed<39) // within 48 hours
-    return  d.toTimeString +" ("+Math.round(elapsed)+" hours ago)"
+    return  d.toTimeString() +" ("+Math.round(elapsed)+" hours ago)"
   elapsed/=24; //elapsed measured in days
   if (elapsed<45)
-    return d.toTimeString +" ("+Math.round(elapsed)+" days ago)"
+    return d.toTimeString() +" ("+Math.round(elapsed)+" days ago)"
   return  d.toTimeString();
 }
 
@@ -414,22 +417,22 @@ var makeResponseForScenario = function(tag,response) {
       var lock_path = "/pub/lock.png";
     if (editable!=EDIT_YES&&config.editable)
       img_lock='<span style="position:absolute;"><img src="'+lock_path+'" align="right" style="position:absolute;top:-4px;left:20px;"/></span>'
-    response.write("<tr><th>"+room.title+img_lock+"</th></tr>\n")
+    response.write("<tr><th>"+(room.title||"&nbsp;")+img_lock+"</th></tr>\n")
     response.write("<tr><td>"+room.body+"</td></tr>\n")
     if (room.opt.length>0) {
       response.write("<tr><td>")
-      response.write("<p align=\"center\" size=24>Options</p>\n")
+      response.write("<p align=\"center\">Options</p>\n")
       for (var i=0;i<room.opt.length;i++) {
         if (room.opt[i].raw_destination.substring(0,3)=="-1x") {
           //no destination written
           if (config.editable&&editable!=EDIT_LOCKED) {
-            response.write("<p>"+(i+1)+". <i><a href="+room.opt[i].destination+">"+room.opt[i].description+"*</a></i></p>\n")
+            response.write("<p>"+(i+1)+". <i><a href=\""+room.opt[i].destination+"\">"+room.opt[i].description+"*</a></i></p>\n")
           }
           else
             response.write("<p>"+(i+1)+". "+room.opt[i].description+"</p>")
         } else
           //link option to destination
-          response.write("<p>"+(i+1)+". <a href="+room.opt[i].destination+">"+room.opt[i].description+"</a></p>\n")
+          response.write("<p>"+(i+1)+". <a href=\""+room.opt[i].destination+"\">"+room.opt[i].description+"</a></p>\n")
       }
       response.write("</td></tr>")
     }
@@ -457,7 +460,7 @@ var makeResponseForScenario = function(tag,response) {
     if (getRoomEditable(room.gyoa_model,room.gyoa_id)==EDIT_YES) {
       //add edit button to navbar
       embed_nav_spl=embed_nav.split("<del/>")
-      embed_nav_cust=embed_nav_spl[0]+"|| <a href=tagedit&"+tags[1]+"x"+tags[2]+">[Edit]</a>"+embed_nav_spl[1]
+      embed_nav_cust=embed_nav_spl[0]+"|| <a href=\"tagedit&"+tags[1]+"x"+tags[2]+"\">[Edit]</a>"+embed_nav_spl[1]
     }
   } else {//no room found
     response.write("<tr><td> Error in URL tags (" + tag + ").<br/> No scenario found.</tr></td>\n"
