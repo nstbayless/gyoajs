@@ -437,7 +437,7 @@ var makeResponseForScenario = function(tag,response) {
       leditdate = getDateGlobalLastEdited()
       //mention date of last edit globally
       if (leditdate!=LEDIT_NEVER) {
-        global_edit_info_string="The last edit to this story overall was " + leditdate;
+        global_edit_info_string="The last edit to this story overall was " + leditdate+" <a href=\"" + edit_history.global.where + "\">here</a>";
       }
     }
     if (getRoomEditable(room.gyoa_model,room.gyoa_id)==EDIT_YES) {
@@ -631,6 +631,7 @@ io.sockets.on('connection',function(socket) {
               user: ""
             };
             edit_history[gyoa_rm_id.gid+"_"+gyoa_rm_id.rid]=edit_history.global;
+            edit_history.global.where="/tagrm&"+gyoa_rm_id.gid+"x"+gyoa_rm_id.rid;
             //edit repo version of room:
             gyoa.editRoomBody(gyoa_model,gyoa_rm_id,data.body)
             gyoa.editRoomTitle(gyoa_model,gyoa_rm_id,data.title)
