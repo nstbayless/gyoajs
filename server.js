@@ -9,6 +9,7 @@ var Struct = require('ref-struct');
 var sanitizeHtml = require('sanitize-html');
 var io = require("socket.io");
 var jsonfile = require("jsonfile");
+var marked = require('marked');
 
 //load config options:
 var config = require("./config")
@@ -280,14 +281,10 @@ var getHTMLBodyText = function(raw_text) {
     if (raw_text.substring(0,6)=="@exact") {
       //display exactly as written:
       return "<pre>"+sanitizeForHTMLInsert(raw_text.substring(6))+"</pre>"
+    } else {
+      //default: text is in markdown
+      return marked(sanitizeForHTMLInsert(raw_text));
     }
-    //convert to paragraph form:
-    var paragraphs = raw_text.split("\n\n")
-    var html_text = ""
-    for (var i in paragraphs){
-      html_text+="<p>"+paragraphs[i]+"</p>\n";
-    }
-    return html_text;
   }
 }
 
@@ -447,7 +444,7 @@ var makeResponseForScenario = function(tag,response) {
       leditdate = getDateRoomLastEdited(room.gyoa_model,room.gyoa_id)
       //mention date of last edit
       if (leditdate!=LEDIT_NEVER) {
-        edit_info_string="<font size=1 color=grey>This room was last edited " + leditdate+"</font>";
+        edit_info_string="<font size=1 color=grey>This scenario was last edited " + leditdate+"</font>";
       }
     }
     if (getRoomEditable(room.gyoa_model,room.gyoa_id)==EDIT_LOCKED) {
@@ -455,7 +452,7 @@ var makeResponseForScenario = function(tag,response) {
       var quantum = getLockQuantum(room.gyoa_id);
       if (config.lockQuantum-quantum*1000 > config.lockHeartbeat*1.2)
         expiry = "(lock expires in " + Math.ceil(quantum) + " seconds)";
-      edit_info_string = "<font size=2 color=#383838><b>This room is currently being edited " + expiry + "</b></font>";
+      edit_info_string = "<font size=2 color=#383838><b>This scenario is currently being edited " + expiry + "</b></font>";
     }
     if (getRoomEditable(room.gyoa_model,room.gyoa_id)==EDIT_YES) {
       //add edit button to navbar
