@@ -2,6 +2,7 @@
   "name": "gyoajs",
   "version": "0.0.1",
   "dependencies": {
+    "expand-home-dir": "0.0.2",
     "express": "3.3.x",
     "ffi": ">=0.0.1",
     "jsonfile": "^2.2.3",

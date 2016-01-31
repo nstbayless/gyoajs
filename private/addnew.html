@@ -1,0 +1,40 @@
+<script src="/pub/socket.io.js"></script>
+<script>
+  var socket = io('_DOMAIN_');
+  function displayError(err) {
+    p_err = document.getElementById('errdisp')
+    p_err.innerHTML=err
+  }
+  function addnew(){
+    var title=document.getElementById("addname").value;
+    var author=document.getElementById("addauthor").value;
+    socket.emit('add_new',{
+      title : title,
+      author : author
+    })
+  }
+  socket.on('errorr', function (data) {
+    //show user error
+    displayError(data.err);
+    console.log("Error received from server: " + data.err)
+    //allow user to resubmit after fixing error
+    submitted=false;
+  });
+  socket.on('redirect', function (data) {
+    //success; get redirected
+    window.location.href=data.url;
+  });
+</script>
+
+<tr><td>
+<h3> Add new story! </h3>
+<p> Story Name: 
+  <input type="text" placeholder="(legal characters only)" id="addname"/>
+</p>
+<p>
+  Author Name:
+  <input type="text" placeholder="enter your name here" id="addauthor"/>
+</p>
+<p><button onclick="addnew()">Submit</button></p>
+<div align="center" id="errdisp" style="color:red;font-weight:bold"></div>
+</td></tr>

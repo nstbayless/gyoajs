@@ -1,4 +1,4 @@
-<script src="pub/socket.io.js"></script>
+<script src="/pub/socket.io.js"></script>
 <script>
   var submitted=false;
   var lock=-1;
@@ -10,11 +10,13 @@
   function renewLock(){
     socket.emit('renew_lock',{
       id : _ROOMID_,
-      lock_code: lock
+      lock_code: lock,
+      repo_n : _REPO_
     })
   }
   socket.emit('acquire_lock',{
-    id : _ROOMID_
+    id : _ROOMID_,
+    repo_n : _REPO_
   })
   socket.on('redirect', function (data) {
     //success; get redirected
@@ -64,6 +66,7 @@
     socket.emit('room_edit',
     {
       id : _ROOMID_,
+      repo_n : _REPO_,
       body : document.getElementById('bodyarea').value,
       title : document.getElementById('title').value,
       opt : opt,
